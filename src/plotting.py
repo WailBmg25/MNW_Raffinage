@@ -15,29 +15,66 @@ plt.rcParams.update({
 
 
 def plot_learning_curves(history, title: str, save_path: str | Path, log_scale: bool = False) -> None:
-    """Trace loss train vs val par epoch, avec annotation de l'epoch d'arrêt (early stopping)."""
-    fig, ax1 = plt.subplots(1, 2, figsize=(12, 4.5))
+    """Trace loss train vs val par epoch (+ métriques par epoch si suivies, ex. MAPE/F1/AUC),
+    avec annotation de l'epoch d'arrêt (early stopping)."""
+    extra_metrics = getattr(history, "extra_metrics", {}) or {}
+    n_panels = 2 + len(extra_metrics)
+    fig, axes = plt.subplots(1, n_panels, figsize=(6 * n_panels, 4.5))
+    if n_panels == 1:
+        axes = [axes]
 
     epochs = np.arange(1, len(history.train_loss) + 1)
-    ax1[0].plot(epochs, history.train_loss, label="Train", color="#0891b2", linewidth=1.8)
-    ax1[0].plot(epochs, history.val_loss, label="Validation", color="#f59e0b", linewidth=1.8)
-    ax1[0].axvline(history.best_epoch, color="#10b981", linestyle="--", linewidth=1.3,
-                    label=f"Meilleure epoch ({history.best_epoch})")
+    axes[0].plot(epochs, history.train_loss, label="Train", color="#0891b2", linewidth=1.8)
+    axes[0].plot(epochs, history.val_loss, label="Validation", color="#f59e0b", linewidth=1.8)
+    axes[0].axvline(history.best_epoch, color="#10b981", linestyle="--", linewidth=1.3,
+                     label=f"Meilleure epoch ({history.best_epoch})")
     if log_scale:
-        ax1[0].set_yscale("log")
-    ax1[0].set_xlabel("Epoch")
-    ax1[0].set_ylabel("Loss")
-    ax1[0].set_title(f"{title} — Courbes d'apprentissage")
-    ax1[0].legend()
+        axes[0].set_yscale("log")
+    axes[0].set_xlabel("Epoch")
+    axes[0].set_ylabel("Loss")
+    axes[0].set_title(f"{title} — Loss train/val")
+    axes[0].legend()
 
-    ax1[1].plot(epochs, history.lr, color="#7c3aed", linewidth=1.8)
-    ax1[1].set_xlabel("Epoch")
-    ax1[1].set_ylabel("Learning rate")
-    ax1[1].set_title("Évolution du learning rate (scheduler)")
-    ax1[1].set_yscale("log")
+    axes[1].plot(epochs, history.lr, color="#7c3aed", linewidth=1.8)
+    axes[1].set_xlabel("Epoch")
+    axes[1].set_ylabel("Learning rate")
+    axes[1].set_title("Learning rate (scheduler)")
+    axes[1].set_yscale("log")
+
+    for i, (name, values) in enumerate(extra_metrics.items()):
+        ax = axes[2 + i]
+        ax.plot(epochs, values, color="#ef4444", linewidth=1.8)
+        ax.axvline(history.best_epoch, color="#10b981", linestyle="--", linewidth=1.3)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel(name)
+        ax.set_title(f"{name} (validation) par epoch")
 
     fig.suptitle(f"Temps d'entraînement : {history.training_time_s:.1f}s | "
                  f"Paramètres : {history.n_params_total:,} | Taille : {history.model_size_mb:.2f} Mo".replace(",", " "))
+    fig.tight_layout()
+    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=130, bbox_inches="tight")
+    plt.show()
+
+
+def plot_confusion_matrix(cm: np.ndarray, class_names: list[str], title: str, save_path: str | Path) -> None:
+    """Matrice de confusion annotée (comptes bruts), pour les tâches de classification
+    (ex. notebook 04 : alerte fouling déclenchée vs non, comparée au label réel)."""
+    fig, ax = plt.subplots(figsize=(4.5, 4))
+    im = ax.imshow(cm, cmap="Blues")
+    ax.set_xticks(range(len(class_names)))
+    ax.set_yticks(range(len(class_names)))
+    ax.set_xticklabels(class_names)
+    ax.set_yticklabels(class_names)
+    ax.set_xlabel("Prédit")
+    ax.set_ylabel("Réel")
+    ax.set_title(title)
+    thresh = cm.max() / 2.0
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], ","), ha="center", va="center",
+                     color="white" if cm[i, j] > thresh else "black")
+    fig.colorbar(im, ax=ax, shrink=0.8)
     fig.tight_layout()
     Path(save_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(save_path, dpi=130, bbox_inches="tight")
