@@ -114,13 +114,13 @@ class EnergyOptimizer:
         capacity_bpd = self.cfg["data_generator"]["refinery_capacity_bpd"]
         kwh_saved_per_bbl = max(baseline_energy - final_energy, 0.0)
         mwh_per_day = kwh_saved_per_bbl * capacity_bpd / 1000.0
-        eur_per_day = mwh_per_day * self.eo_cfg["gas_price_eur_per_mwh"]
+        usd_per_day = mwh_per_day * self.eo_cfg["gas_price_usd_per_mwh"]
         tco2_per_day = mwh_per_day * self.eo_cfg["co2_factor_t_per_mwh"]
         constraints_ok = final_distillate >= baseline_distillate - self.eo_cfg["min_distillate_drop_pt"] / 100 - 1e-3
 
         return {
             "cot_current": cot0, "cot_recommended": cot_rec,
             "reflux_current": reflux0, "reflux_recommended": reflux_rec,
-            "gain_pct": float(gain_pct), "eur_per_day": float(eur_per_day),
+            "gain_pct": float(gain_pct), "usd_per_day": float(usd_per_day),
             "tco2_per_day": float(tco2_per_day), "constraints_ok": bool(constraints_ok),
         }

@@ -51,43 +51,47 @@ export default function JumeauPage() {
       data: { health: "ok", ...data } as unknown as Record<string, unknown>,
     });
 
+    // Colonne verticale (y=340) : sert de centre pour équilibrer le fan-out des 4 coupes
+    // Nœuds "spine" (largeur fixe 190px, cf. EquipmentNode) alignés sur une ligne horizontale ;
+    // les coupes et produits (largeur 120px) sont espacés de 130px pour ne jamais se chevaucher,
+    // même quand la colonne (4 capteurs) s'étend sur deux lignes.
     const nodes: Node[] = [
-      mk("brut", 0, 180, { label: "Brut", subtitle: "Alimentation" }),
-      mk("dessaleur", 190, 180, { label: "Dessaleur", subtitle: "Dessalage" }),
-      mk("preheat", 380, 180, {
+      mk("brut", 0, 340, { label: "Brut", subtitle: "Alimentation" }),
+      mk("dessaleur", 260, 340, { label: "Dessaleur", subtitle: "Dessalage" }),
+      mk("preheat", 520, 340, {
         label: "Train de préchauffe",
         subtitle: "E-101 / E-102 / E-103",
         health: healthFor(equipment, "preheat_train"),
         sensors: sensorsFor(sensors, ["TI-301"]),
         onSensorClick,
       }),
-      mk("furnace", 590, 180, {
+      mk("furnace", 780, 340, {
         label: "Four F-101",
         subtitle: "COT",
         health: healthFor(equipment, "furnace"),
         sensors: sensorsFor(sensors, ["TI-201", "FI-301"]),
         onSensorClick,
       }),
-      mk("column", 800, 180, {
+      mk("column", 1040, 320, {
         label: "Colonne CDU C-101",
         subtitle: "Distillation atmosphérique",
         health: healthFor(equipment, "column"),
         sensors: sensorsFor(sensors, ["TI-202", "PI-201", "FI-202", "FI-203"]),
         onSensorClick,
       }),
-      mk("naphtha", 1030, 20, { label: "Naphta", variant: "stream" }),
-      mk("kerosene", 1030, 110, { label: "Kérosène", variant: "stream" }),
-      mk("gasoil", 1030, 250, { label: "Gazole", variant: "stream" }),
-      mk("residue", 1030, 340, { label: "Résidu", variant: "stream" }),
-      mk("cracker", 1230, 20, {
+      mk("naphtha", 1380, 40, { label: "Naphta", variant: "stream" }),
+      mk("kerosene", 1380, 210, { label: "Kérosène", variant: "stream" }),
+      mk("gasoil", 1380, 460, { label: "Gazole", variant: "stream" }),
+      mk("residue", 1380, 630, { label: "Résidu", variant: "stream" }),
+      mk("cracker", 1650, 20, {
         label: "Vapocraqueur",
         subtitle: "Naphta → oléfines",
         health: healthFor(equipment, "cracker"),
         sensors: sensorsFor(sensors, ["TI-401", "FI-401"]),
         onSensorClick,
       }),
-      mk("ethylene", 1450, -40, { label: "Éthylène", variant: "stream" }),
-      mk("propylene", 1450, 60, { label: "Propylène", variant: "stream" }),
+      mk("ethylene", 1990, -20, { label: "Éthylène", variant: "stream" }),
+      mk("propylene", 1990, 130, { label: "Propylène", variant: "stream" }),
     ];
 
     const flow = twinState?.sensors.find((s) => s.id === "FI-101")?.value ?? 1;
@@ -97,6 +101,7 @@ export default function JumeauPage() {
       id,
       source,
       target,
+      type: "smoothstep",
       animated,
       style: { stroke: "#0891b2", strokeWidth },
     });

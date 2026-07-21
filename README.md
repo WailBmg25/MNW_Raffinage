@@ -13,7 +13,7 @@ aucun algorithme de machine learning classique (scikit-learn n'est utilisé que 
 |---|----------|--------------------|--------------|-----------------|
 | 1 | Prédire les rendements des coupes (naphta, kérosène, gazole, résidu) | MAPE < 5 % par coupe | LSTM/GRU/TCN/Transformer (8 architectures comparées) | **2.99 %** (RNN simple) ✅ |
 | 2 | Détecter le fouling (encrassement) | Détection > 24 h avant nettoyage | Autoencodeurs + résidus GRU (5 approches comparées) | **~3764 h** (autoencodeur dense) ✅ |
-| 3 | Optimiser la température du four (COT) | Gain énergétique > 5 % | Surrogate NN + gradient sur les entrées | **5.53 %**, 716 €/j, 4.13 tCO₂/j ✅ |
+| 3 | Optimiser la température du four (COT) | Gain énergétique > 5 % | Surrogate NN + gradient sur les entrées | **5.53 %**, 774 $/j, 4.13 tCO₂/j ✅ |
 | 4 | Prédire la qualité des produits (soft sensor labo) | Corrélation > 0.9 | GRU multi-sorties | **0.971** ✅ |
 | 5 | Système d'alerte temps réel | Latence < 1 min | Pipeline d'inférence + moteur d'alertes | **~23 ms** en moyenne ✅ |
 

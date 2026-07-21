@@ -135,8 +135,8 @@ models:
 # Optimisation énergétique (notebook 05)
 # -----------------------------------------------------------------------------
 energy_optimization:
-  gas_price_eur_per_mwh: 35.0
-  co2_price_eur_per_ton: 80.0
+  gas_price_usd_per_mwh: 37.8
+  co2_price_usd_per_ton: 86.4
   co2_factor_t_per_mwh: 0.202
   yield_penalty_weight: 50.0
   bounds_penalty_weight: 20.0

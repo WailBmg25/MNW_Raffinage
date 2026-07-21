@@ -143,8 +143,8 @@ class TwinEngine:
         distillate_pct = float(np.sum(state["yield_actual"][:3]) * 100)
 
         gain_pct = 100.0 * (baseline - current_energy) / baseline if baseline else 0.0
-        eur_saved = max(gain_pct, 0.0) / 100.0 * baseline * self.cfg["data_generator"]["refinery_capacity_bpd"] \
-            / 1000.0 * self.cfg["energy_optimization"]["gas_price_eur_per_mwh"]
+        usd_saved = max(gain_pct, 0.0) / 100.0 * baseline * self.cfg["data_generator"]["refinery_capacity_bpd"] \
+            / 1000.0 * self.cfg["energy_optimization"]["gas_price_usd_per_mwh"]
         co2_avoided = max(gain_pct, 0.0) / 100.0 * baseline * self.cfg["data_generator"]["refinery_capacity_bpd"] \
             / 1000.0 * self.cfg["energy_optimization"]["co2_factor_t_per_mwh"]
 
@@ -168,6 +168,6 @@ class TwinEngine:
             "fouling_index": state.get("fouling_index", 0.0),
             "fouling_days_before_cleaning": state.get("fouling_days_to_cleaning"),
             "active_alerts": state.get("active_alerts_count", 0),
-            "eur_saved_today": float(eur_saved), "co2_avoided_today_t": float(co2_avoided),
+            "usd_saved_today": float(usd_saved), "co2_avoided_today_t": float(co2_avoided),
             "objectives": objectives,
         }

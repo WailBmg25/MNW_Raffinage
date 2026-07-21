@@ -136,7 +136,7 @@ export default function CommandCenterPage() {
                   <Leaf className="h-3.5 w-3.5" /> Gain énergie
                 </span>
                 <span className="text-xl font-semibold text-emerald-400">
-                  <AnimatedNumber value={kpi?.eur_saved_today ?? 0} decimals={0} suffix=" €" />
+                  <AnimatedNumber value={kpi?.usd_saved_today ?? 0} decimals={0} suffix=" $" />
                 </span>
               </CardContent>
             </Card>

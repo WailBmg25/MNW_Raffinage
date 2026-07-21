@@ -31,7 +31,7 @@ export interface KpiSummary {
   fouling_index: number;
   fouling_days_before_cleaning: number | null;
   active_alerts: number;
-  eur_saved_today: number;
+  usd_saved_today: number;
   co2_avoided_today_t: number;
   objectives: Objective[];
 }
@@ -93,7 +93,7 @@ export interface EnergyOptimizeResponse {
   reflux_current: number;
   reflux_recommended: number;
   gain_pct: number;
-  eur_per_day: number;
+  usd_per_day: number;
   tco2_per_day: number;
   constraints_ok: boolean;
 }

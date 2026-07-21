@@ -13,12 +13,12 @@ export default function EnergiePage() {
   const optimize = useEnergyOptimize();
   const { data: history } = useYieldsHistory(168);
 
-  const [cumulativeEur, setCumulativeEur] = useState(0);
+  const [cumulativeUsd, setCumulativeUsd] = useState(0);
   const [cumulativeCo2, setCumulativeCo2] = useState(0);
 
   useEffect(() => {
     const id = setInterval(() => {
-      setCumulativeEur((v) => v + 12.4);
+      setCumulativeUsd((v) => v + 12.4);
       setCumulativeCo2((v) => v + 0.03);
     }, 2000);
     return () => clearInterval(id);
@@ -96,7 +96,7 @@ export default function EnergiePage() {
                 <Metric label="COT recommandé" value={`${optimize.data.cot_recommended.toFixed(1)} °C`} accent="emerald" />
                 <Metric label="Reflux recommandé" value={optimize.data.reflux_recommended.toFixed(2)} accent="emerald" />
                 <Metric label="Gain" value={`${optimize.data.gain_pct.toFixed(1)} %`} accent="emerald" />
-                <Metric label="Économie / jour" value={`${optimize.data.eur_per_day.toFixed(0)} €`} accent="emerald" />
+                <Metric label="Économie / jour" value={`${optimize.data.usd_per_day.toFixed(0)} $`} accent="emerald" />
                 <Metric label="CO₂ évité / jour" value={`${optimize.data.tco2_per_day.toFixed(2)} t`} accent="emerald" />
                 <div className="col-span-2 flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-xs">
                   {optimize.data.constraints_ok ? (
@@ -119,9 +119,9 @@ export default function EnergiePage() {
         <div className="flex flex-col gap-4">
           <Card className="border-emerald-500/20 bg-emerald-500/5">
             <CardContent className="flex flex-col gap-1 py-4">
-              <span className="text-xs text-emerald-300">€ économisés depuis le début de la simulation</span>
+              <span className="text-xs text-emerald-300">$ économisés depuis le début de la simulation</span>
               <span className="text-3xl font-semibold text-emerald-400">
-                <AnimatedNumber value={cumulativeEur} decimals={0} suffix=" €" />
+                <AnimatedNumber value={cumulativeUsd} decimals={0} suffix=" $" />
               </span>
             </CardContent>
           </Card>

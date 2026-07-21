@@ -67,6 +67,7 @@ export function TrendChart({
             fontSize: 12,
           }}
           labelStyle={{ color: "#e2e8f0" }}
+          isAnimationActive={false}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} />
         {referenceLines?.map((r) => (
@@ -91,6 +92,7 @@ export function TrendChart({
               strokeWidth={1.6}
               dot={false}
               strokeDasharray={s.strokeDasharray}
+              isAnimationActive={false}
             />
           ) : (
             <Line
@@ -102,6 +104,7 @@ export function TrendChart({
               strokeWidth={1.8}
               dot={false}
               strokeDasharray={s.strokeDasharray}
+              isAnimationActive={false}
             />
           )
         )}

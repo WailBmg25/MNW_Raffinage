@@ -37,7 +37,7 @@ class KpiSummary(BaseModel):
     fouling_index: float
     fouling_days_before_cleaning: float | None
     active_alerts: int
-    eur_saved_today: float
+    usd_saved_today: float
     co2_avoided_today_t: float
     objectives: list[Objective]
 
@@ -103,7 +103,7 @@ class OptimizationResult(BaseModel):
     reflux_current: float
     reflux_recommended: float
     gain_pct: float
-    eur_per_day: float
+    usd_per_day: float
     tco2_per_day: float
     constraints_ok: bool
 
