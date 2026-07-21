@@ -349,11 +349,14 @@ def generate_lab_data(index: pd.DatetimeIndex, cdu_df: pd.DataFrame, cfg: dict,
     api = cdu_df["crude_api"].values[sample_idx]
     crude_type = cdu_df["crude_type"].values[sample_idx]
 
+    # Coefficients calibrés pour que le signal déterministe (piloté surtout par crude_api, dont
+    # l'écart-type inter-brut ~3 domine largement celui du COT ~1.6) reste bien au-dessus du
+    # bruit labo, condition nécessaire pour qu'un soft sensor continu puisse approcher corr > 0.9.
     n_s = len(sample_idx)
-    naphtha_fbp = 165 + 0.6 * (cot - 365) + rng.normal(0, 3, n_s)
-    kerosene_flash_point = 45 + 0.3 * (cot - 365) - 0.2 * (reflux - 2.4) + rng.normal(0, 1.5, n_s)
-    gasoil_cetane_index = 50 + 0.5 * (api - 31) - 0.1 * (cot - 365) + rng.normal(0, 1.0, n_s)
-    residue_viscosity = 380 - 6 * (api - 31) + 1.2 * (cot - 365) + rng.normal(0, 10, n_s)
+    naphtha_fbp = 165 - 2.0 * (api - 31) + 0.4 * (cot - 365) + rng.normal(0, 1.2, n_s)
+    kerosene_flash_point = 45 - 1.0 * (api - 31) + 0.2 * (cot - 365) - 0.15 * (reflux - 2.4) + rng.normal(0, 0.6, n_s)
+    gasoil_cetane_index = 50 + 1.2 * (api - 31) - 0.15 * (cot - 365) + rng.normal(0, 0.6, n_s)
+    residue_viscosity = 380 - 10.0 * (api - 31) + 1.5 * (cot - 365) + rng.normal(0, 6, n_s)
     sulfur_base = np.select([crude_type == "leger", crude_type == "moyen", crude_type == "lourd"],
                              [0.3, 0.9, 2.1], default=0.9)
     sulfur_content = sulfur_base * (1 + rng.normal(0, c["sulfur_noise_pct"], n_s))

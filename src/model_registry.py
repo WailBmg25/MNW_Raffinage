@@ -48,12 +48,13 @@ def _load_checkpoint_as_model(path: Path, device: torch.device):
 
 
 class ArtifactBundle:
-    """Regroupe modèle + scaler + noms de features pour une tâche donnée."""
+    """Regroupe modèle + scaler (X, et éventuellement y) + noms de features pour une tâche donnée."""
 
-    def __init__(self, model, scaler, feature_names: list[str] | None):
+    def __init__(self, model, scaler, feature_names: list[str] | None, scaler_y=None):
         self.model = model
         self.scaler = scaler
         self.feature_names = feature_names
+        self.scaler_y = scaler_y
 
     @property
     def available(self) -> bool:
@@ -75,7 +76,8 @@ class ModelRegistry:
 
         self.quality_production_meta = self._try_load_json("quality_production_model.json")
         quality_ckpt_name = (self.quality_production_meta or {}).get("checkpoint", "quality_soft_sensor.pt")
-        self.quality = self._try_load_bundle(quality_ckpt_name, "quality_scaler_X.joblib", "quality_feature_names.joblib")
+        self.quality = self._try_load_bundle(quality_ckpt_name, "quality_scaler_X.joblib", "quality_feature_names.joblib",
+                                              y_scaler_file="quality_scaler_y.joblib")
 
         self.surrogate = self._try_load_bundle("surrogate_energy.pt", "surrogate_scaler_X.joblib",
                                                 "surrogate_feature_names.joblib")
@@ -84,7 +86,8 @@ class ModelRegistry:
                     self.device, self.yields.available, self.fouling.available,
                     self.quality.available, self.surrogate.available)
 
-    def _try_load_bundle(self, model_file: str, scaler_file: str, feature_names_file: str) -> ArtifactBundle:
+    def _try_load_bundle(self, model_file: str, scaler_file: str, feature_names_file: str,
+                          y_scaler_file: str | None = None) -> ArtifactBundle:
         model_path = self.artifacts_dir / model_file
         if not model_path.exists():
             logger.warning("Artefact manquant : %s (mode dégradé pour cette tâche)", model_path)
@@ -95,7 +98,11 @@ class ModelRegistry:
             scaler = joblib.load(scaler_path) if scaler_path.exists() else None
             feat_path = self.artifacts_dir / feature_names_file
             feature_names = joblib.load(feat_path) if feat_path.exists() else None
-            return ArtifactBundle(model, scaler, feature_names)
+            scaler_y = None
+            if y_scaler_file is not None:
+                y_scaler_path = self.artifacts_dir / y_scaler_file
+                scaler_y = joblib.load(y_scaler_path) if y_scaler_path.exists() else None
+            return ArtifactBundle(model, scaler, feature_names, scaler_y=scaler_y)
         except Exception:
             logger.exception("Échec du chargement de %s (mode dégradé pour cette tâche)", model_path)
             return ArtifactBundle(None, None, None)
@@ -163,9 +170,14 @@ class ModelRegistry:
             return self.surrogate.model(t).cpu().numpy()[0]
 
     def predict_quality(self, X_window: np.ndarray) -> np.ndarray | None:
+        """Retourne les 5 cibles qualité en unités réelles (dé-standardisées via scaler_y
+        si le modèle a été entraîné sur des cibles normalisées — cf. notebook 06)."""
         if not self.quality.available:
             return None
         Xs = self.quality.scaler.transform(X_window.reshape(-1, X_window.shape[-1])).reshape(X_window.shape)
         with torch.no_grad():
             t = torch.tensor(Xs, dtype=torch.float32, device=self.device)
-            return self.quality.model(t).cpu().numpy()[0]
+            out = self.quality.model(t).cpu().numpy()[0]
+        if self.quality.scaler_y is not None:
+            out = self.quality.scaler_y.inverse_transform(out.reshape(1, -1))[0]
+        return out
