@@ -1,0 +1,52 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: mnw-raffinage-backend
+    ports:
+      - "8000:8000"
+    environment:
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:3001"
+      MODELS_ARTIFACTS_DIR: "/app/backend/models_artifacts"
+      DATA_RAW_DIR: "/app/data/raw"
+      DATA_PROCESSED_DIR: "/app/data/processed"
+      REFINERY_NAME: "Raffinerie MNW — 200 000 bbl/j"
+    volumes:
+      - models_artifacts:/app/backend/models_artifacts
+      - data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8000"
+    image: mnw-raffinage-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  models_artifacts:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/backend/models_artifacts
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data

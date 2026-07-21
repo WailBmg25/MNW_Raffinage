@@ -1,0 +1,13 @@
+.git
+.venv
+notebooks
+data/processed
+data/results
+frontend/node_modules
+frontend/.next
+frontend/out
+**/__pycache__
+**/*.pyc
+.ipynb_checkpoints
+*.md
+spec_projet_raffinage_dl.md
