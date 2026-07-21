@@ -1,0 +1,36 @@
+[project]
+name = "refinery-dl"
+version = "0.1.0"
+description = "Jumeau numerique DL - Raffinage CDU & Vapocraqueur (donnees 100% synthetiques)"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.1",
+    "tqdm",
+    "torchinfo",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "pyyaml",
+    "joblib",
+    "scikit-learn",
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2",
+    "websockets",
+    "statsmodels",
+    "jupyter",
+    "ipykernel",
+    "nbformat",
+    "nbclient",
+    "httpx",
+]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
