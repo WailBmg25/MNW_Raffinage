@@ -112,9 +112,9 @@ training:
   epochs_max: 60
   patience: 10
   grad_clip_max_norm: 1.0
-  weight_decay: 1e-4
+  weight_decay: 1.0e-4
   dropout: 0.3
-  learning_rate: 1e-3
+  learning_rate: 1.0e-3
 
 models:
   mlp:            {hidden_sizes: [128, 64], dropout: 0.3}
