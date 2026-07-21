@@ -1,0 +1,7 @@
+{
+  "model_type": "dense_ae",
+  "checkpoint": "fouling_dense_ae.pt",
+  "threshold": 1.2752712965011597,
+  "ewma_span": null,
+  "mean_lead_time_h": 3764.25
+}
