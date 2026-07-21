@@ -1,0 +1,163 @@
+# =============================================================================
+# config.yaml — Configuration centrale du projet
+# Jumeau Numérique CDU & Vapocraqueur — Raffinerie 200 000 bbl/j
+# =============================================================================
+
+seed: 42
+
+paths:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  results_dir: "data/results"
+  figures_dir: "data/results/figures"
+  model_report: "data/results/model_report.md"
+  backend_artifacts_dir: "backend/models_artifacts"
+
+# -----------------------------------------------------------------------------
+# Générateur de données synthétiques (src/data_generator.py)
+# -----------------------------------------------------------------------------
+data_generator:
+  start_date: "2024-01-01"
+  end_date: "2025-12-31 23:00:00"
+  freq: "h"                       # index horaire commun aux 4 tables
+
+  refinery_capacity_bpd: 200000
+
+  cdu:
+    feed_rate_mean: 1325.0        # m3/h
+    feed_rate_std: 45.0
+    feed_rate_ramp_prob: 0.02     # probabilité de rampe de charge à chaque pas
+    crude_types: ["leger", "moyen", "lourd"]
+    crude_api: {leger: 34.0, moyen: 31.0, lourd: 27.0}
+    crude_change_min_days: 5
+    crude_change_max_days: 15
+    crude_transition_hours: 9
+    furnace_cot_min: 355.0
+    furnace_cot_max: 375.0
+    furnace_cot_setpoint: 365.0
+    furnace_cot_controller_noise: 0.6
+    column_top_temp_mean: 120.0
+    column_top_temp_std: 3.0
+    column_top_pressure_mean: 1.8   # bar
+    column_top_pressure_std: 0.08
+    reflux_ratio_mean: 2.4
+    reflux_ratio_std: 0.25
+    stripping_steam_mean: 3.2       # t/h
+    stripping_steam_std: 0.3
+    # rendements de base (fractions massiques, somme=1) par type de brut à COT/reflux nominaux
+    base_yields:
+      leger: {naphtha: 0.28, kerosene: 0.22, gasoil: 0.30, residue: 0.20}
+      moyen: {naphtha: 0.22, kerosene: 0.20, gasoil: 0.31, residue: 0.27}
+      lourd: {naphtha: 0.15, kerosene: 0.17, gasoil: 0.30, residue: 0.38}
+    cot_sensitivity: 0.010          # ↑COT ⇒ ↑distillats/↓résidu (par °C d'écart au setpoint, /100)
+    reflux_sensitivity: 0.02        # netteté des coupes
+    sensor_noise_pct: 0.003
+    missing_rate: 0.01
+    outlier_rate: 0.003
+    outlier_magnitude: 4.0          # en écarts-types
+    drift_sensors: ["column_top_temp", "furnace_cot"]
+    drift_amplitude: 1.5
+
+  energy:
+    fouling_asymptote: 0.0065       # m2K/W, résistance max atteinte asymptotiquement (Ebert-Panchal simplifié)
+    fouling_rate: 0.00028           # vitesse de croissance
+    n_cleanings: 5
+    preheat_outlet_base: 245.0      # °C sans fouling
+    preheat_outlet_fouling_sensitivity: 3200.0
+    fuel_gas_flow_base: 4.8         # t/h
+    furnace_duty_base_mw: 42.0
+    specific_energy_base: 1.35      # kWh/bbl
+    co2_factor_t_per_mwh: 0.202
+    cleaning_threshold: 0.0045      # seuil de résistance déclenchant le nettoyage
+    sensor_noise_pct: 0.004
+
+  cracker:
+    naphtha_feed_mean: 210.0        # t/h
+    naphtha_feed_std: 12.0
+    coil_outlet_temp_min: 820.0
+    coil_outlet_temp_max: 860.0
+    coil_outlet_temp_setpoint: 840.0
+    steam_to_oil_ratio_mean: 0.45
+    residence_time_mean: 0.35       # s
+    ethylene_yield_max: 0.34
+    propylene_yield_peak: 0.17
+    coke_cycle_min_days: 45
+    coke_cycle_max_days: 60
+    tube_metal_temp_base: 1020.0
+    sensor_noise_pct: 0.004
+
+  lab:
+    sample_interval_hours: 8
+    result_delay_hours: 4
+    sulfur_noise_pct: 0.05
+    lab_noise_pct: 0.02
+
+# -----------------------------------------------------------------------------
+# Préprocessing (src/preprocessing.py)
+# -----------------------------------------------------------------------------
+preprocessing:
+  outlier_iqr_k: 3.0
+  yield_window_hours: 24
+  fouling_window_hours: 48
+  rolling_windows: [6, 24]
+  split_ratios: {train: 0.70, val: 0.15, test: 0.15}
+
+# -----------------------------------------------------------------------------
+# Hyperparamètres par famille de modèle (utilisés par les notebooks + train_all.py)
+# Budget d'entraînement volontairement modeste pour un entraînement CPU rapide,
+# tout en respectant les critères d'acceptation (MAPE<5%, gain>5%, corr>0.9).
+# -----------------------------------------------------------------------------
+training:
+  batch_size: 64
+  epochs_max: 60
+  patience: 10
+  grad_clip_max_norm: 1.0
+  weight_decay: 1e-4
+  dropout: 0.3
+  learning_rate: 1e-3
+
+models:
+  mlp:            {hidden_sizes: [128, 64], dropout: 0.3}
+  rnn:            {hidden_size: 64, num_layers: 1, dropout: 0.2}
+  lstm:           {hidden_size: 64, num_layers: 2, dropout: 0.3}
+  gru:            {hidden_size: 64, num_layers: 2, dropout: 0.3}
+  bilstm:         {hidden_size: 64, num_layers: 2, dropout: 0.3}
+  cnn1d:          {channels: [32, 64, 64], kernel_size: 3, dropout: 0.3}
+  tcn:            {channels: [32, 32, 64], kernel_size: 3, dropout: 0.2}
+  transformer:    {d_model: 64, n_heads: 4, num_layers: 2, dim_feedforward: 128, dropout: 0.2}
+  dense_ae:       {hidden_sizes: [64, 16], dropout: 0.2}
+  conv_ae:        {channels: [32, 16], kernel_size: 3, dropout: 0.2}
+  lstm_ae:        {hidden_size: 32, num_layers: 1, dropout: 0.2}
+  vae:            {hidden_size: 32, latent_dim: 8, dropout: 0.2}
+  surrogate:      {hidden_sizes: [128, 128, 64], dropout: 0.3}
+
+# -----------------------------------------------------------------------------
+# Optimisation énergétique (notebook 05)
+# -----------------------------------------------------------------------------
+energy_optimization:
+  gas_price_eur_per_mwh: 35.0
+  co2_price_eur_per_ton: 80.0
+  co2_factor_t_per_mwh: 0.202
+  yield_penalty_weight: 50.0
+  bounds_penalty_weight: 20.0
+  min_distillate_drop_pt: 0.5       # distillats >= actuel - 0.5 pt
+  cot_bounds: [355.0, 375.0]
+  reflux_bounds: [1.8, 3.2]
+  gradient_steps: 200
+  gradient_lr: 0.05
+  random_search_trials: 500
+
+# -----------------------------------------------------------------------------
+# Système temps réel & alertes (notebook 06 + backend)
+# -----------------------------------------------------------------------------
+realtime:
+  tick_seconds: 2.0                 # cadence du websocket /ws/realtime
+  hours_per_tick: 1                 # 1h de données rejouée par tick
+  quality_corr_threshold: 0.9
+
+alerts:
+  fouling_warning_days: 3           # jours avant nettoyage estimé -> warning
+  fouling_critical_days: 1
+  yield_drift_sigma: 2.0
+  energy_anomaly_pct: 10.0
+  debounce_ticks: 3                 # anti-rebond : n ticks consécutifs avant de lever/lever une alerte
