@@ -17,6 +17,9 @@ from src.fouling_detector import FoulingDetector
 from src import preprocessing as pp
 from src.yield_model import YIELD_NAMES, YieldModel
 
+QUALITY_TARGETS = ["naphtha_final_boiling_point", "kerosene_flash_point", "gasoil_cetane_index",
+                    "residue_viscosity", "sulfur_content"]
+
 SENSOR_DEFS = [
     {"id": "FI-101", "name": "Débit charge", "column": "feed_rate", "unit": "m³/h", "equipment": "column"},
     {"id": "TI-201", "name": "COT four", "column": "furnace_cot", "unit": "°C", "equipment": "furnace"},
@@ -95,6 +98,7 @@ class RealtimeMonitor:
         self.fouling_detector = fouling_detector
         self.energy_optimizer = energy_optimizer
         self.alert_engine = alert_engine
+        self.registry = yield_model.registry
 
         if replay_df is None:
             replay_df, hidden_df = build_replay_table(cfg)
@@ -107,6 +111,8 @@ class RealtimeMonitor:
         self.pos = self.start_pos
         self.fouling_score_history: list[float] = []
         self.specific_energy_baseline = float(replay_df["specific_energy"].iloc[: self.start_pos].mean())
+        self.quality_limits = {name: (spec.get("min"), spec.get("max"))
+                                for name, spec in cfg.get("quality_specs", {}).items()}
 
     def _sensor_status(self, col: str, value: float) -> str:
         series = self.replay_df[col]
@@ -176,10 +182,18 @@ class RealtimeMonitor:
         yield_roll_mean = roll.mean().values
         yield_roll_std = roll.std().values
 
+        quality_pred_dict = None
+        if self.registry.quality.available:
+            feat_q = self.registry.quality.feature_names
+            window_q = self.replay_df[feat_q].iloc[self.pos - self.window_y:self.pos].values[None, ...]
+            quality_pred = self.registry.predict_quality(window_q)
+            quality_pred_dict = dict(zip(QUALITY_TARGETS, quality_pred.tolist()))
+
         active_alerts = self.alert_engine.evaluate_tick(
             ts, fouling_index=fouling_index, fouling_days_to_cleaning=days_to_cleaning,
             yield_pred=yield_pred, yield_actual=yield_actual,
             yield_roll_mean=yield_roll_mean, yield_roll_std=yield_roll_std,
+            quality_pred=quality_pred_dict, quality_limits=self.quality_limits,
             specific_energy=float(row["specific_energy"]), specific_energy_baseline=self.specific_energy_baseline,
         )
 
@@ -213,4 +227,5 @@ class RealtimeMonitor:
             "fouling_index": fouling_index, "fouling_trend": trend, "fouling_days_to_cleaning": days_to_cleaning,
             "specific_energy": float(row["specific_energy"]), "feed_rate": float(row["feed_rate"]),
             "yield_actual": yield_actual, "yield_pred": yield_pred,
+            "quality_pred": quality_pred_dict,
         }

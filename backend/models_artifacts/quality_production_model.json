@@ -1,0 +1,12 @@
+{
+  "mean_correlation": 0.9708726460206855,
+  "per_target": {
+    "naphtha_final_boiling_point": 0.9656380383029383,
+    "kerosene_flash_point": 0.9653723713244059,
+    "gasoil_cetane_index": 0.9719900112154901,
+    "residue_viscosity": 0.9665243156335525,
+    "sulfur_content": 0.9848384936270407
+  },
+  "objective_ok": true,
+  "checkpoint": "quality_soft_sensor.pt"
+}

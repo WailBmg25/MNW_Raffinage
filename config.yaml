@@ -161,3 +161,13 @@ alerts:
   yield_drift_sigma: 2.0
   energy_anomaly_pct: 10.0
   debounce_ticks: 3                 # anti-rebond : n ticks consécutifs avant de lever/lever une alerte
+
+# -----------------------------------------------------------------------------
+# Spécifications qualité produit (bornes opératoires, pour l'alerte "hors spec")
+# -----------------------------------------------------------------------------
+quality_specs:
+  naphtha_final_boiling_point: {max: 170.5}
+  kerosene_flash_point: {min: 42.6}
+  gasoil_cetane_index: {min: 46.7}
+  residue_viscosity: {max: 416.7}
+  sulfur_content: {max: 2.2}
