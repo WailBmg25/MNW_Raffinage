@@ -1,6 +1,6 @@
 # Rapport de modèle — Jumeau numérique CDU & Vapocraqueur
 
-*Généré automatiquement par `notebooks/06_realtime_system.ipynb` — 2026-07-21 16:13*
+*Généré automatiquement par `notebooks/06_realtime_system.ipynb` — 2026-07-21 17:21*
 
 
 ## Synthèse : 5/5 objectifs atteints
@@ -9,9 +9,9 @@
 |---|----------|---------|------------------|--------|
 | 1 | Prédiction des rendements | MAPE < 5% par coupe | 2.99% (architecture RNN simple) | ✅ |
 | 2 | Détection du fouling | > 24h avant nettoyage | 3764.2h (méthode dense_ae) | ✅ |
-| 3 | Optimisation énergétique | Gain > 5% | 5.53% (716 €/j, 4.13 tCO2/j) | ✅ |
+| 3 | Optimisation énergétique | Gain > 5% | 5.53% (774 $/j, 4.13 tCO2/j) | ✅ |
 | 4 | Soft sensor qualité | Corrélation > 0.9 | 0.971 | ✅ |
-| 5 | Système d'alerte temps réel | Latence < 1 min | 22.3 ms (moyenne), 178.1 ms (max) | ✅ |
+| 5 | Système d'alerte temps réel | Latence < 1 min | 54.5 ms (moyenne), 225.7 ms (max) | ✅ |
 
 ## Détails par notebook
 

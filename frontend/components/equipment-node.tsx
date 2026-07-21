@@ -32,7 +32,7 @@ export function EquipmentNode({ data }: NodeProps) {
     <div
       className={cn(
         "rounded-2xl border bg-[#111827] px-3 py-2.5 shadow-lg shadow-black/30 ring-1 transition-shadow",
-        isStream ? "border-slate-800/70 min-w-[110px]" : "min-w-[150px] border-slate-700",
+        isStream ? "w-[120px] border-slate-800/70" : "w-[190px] border-slate-700",
         HEALTH_RING[d.health]
       )}
       onClick={d.onEquipmentClick}
