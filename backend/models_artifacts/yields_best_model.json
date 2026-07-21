@@ -1,0 +1,13 @@
+{
+  "model_type": "rnn",
+  "label": "RNN simple",
+  "mape_global": 2.98704132437706,
+  "mape_per_cut": {
+    "naphta": 4.946059733629227,
+    "kérosène": 1.8159085884690285,
+    "gazole": 1.122832577675581,
+    "résidu": 4.063361883163452
+  },
+  "params": 13956,
+  "checkpoint": "yields_rnn.pt"
+}
