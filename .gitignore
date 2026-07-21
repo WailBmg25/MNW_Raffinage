@@ -20,6 +20,9 @@ frontend/.env*.local
 data/processed/*.npy
 !data/processed/.gitkeep
 
+# Override local docker-compose (spécifique à une machine, ex. conflit de port)
+docker-compose.override.yml
+
 # OS
 .DS_Store
 
