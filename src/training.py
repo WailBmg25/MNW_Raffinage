@@ -40,6 +40,7 @@ class TrainHistory:
     train_loss: list[float] = field(default_factory=list)
     val_loss: list[float] = field(default_factory=list)
     lr: list[float] = field(default_factory=list)
+    extra_metrics: dict[str, list[float]] = field(default_factory=dict)
     best_epoch: int = 0
     stopped_epoch: int = 0
     training_time_s: float = 0.0
@@ -82,10 +83,16 @@ def build_scheduler(optimizer: torch.optim.Optimizer, cfg: TrainConfig):
 
 
 def _run_epoch(model: nn.Module, loader: DataLoader, loss_fn: Callable, device: torch.device,
-               optimizer: torch.optim.Optimizer | None, grad_clip_max_norm: float | None) -> float:
+               optimizer: torch.optim.Optimizer | None, grad_clip_max_norm: float | None,
+               collect_predictions: bool = False
+               ) -> float | tuple[float, np.ndarray, np.ndarray]:
+    """Si `collect_predictions=True` (utilisé pour la validation), retourne aussi toutes les
+    prédictions/cibles de l'epoch — réutilisées pour calculer des métriques par epoch
+    (MAPE, F1, ...) sans repasser une seconde fois sur le jeu de validation."""
     is_train = optimizer is not None
     model.train(is_train)
     total_loss, n_samples = 0.0, 0
+    all_preds, all_targets = [], []
     with torch.set_grad_enabled(is_train):
         for xb, yb in loader:
             xb, yb = xb.to(device), yb.to(device)
@@ -101,14 +108,26 @@ def _run_epoch(model: nn.Module, loader: DataLoader, loss_fn: Callable, device: 
             bs = xb.size(0)
             total_loss += loss.item() * bs
             n_samples += bs
-    return total_loss / max(n_samples, 1)
+            if collect_predictions:
+                all_preds.append(pred.detach().cpu().numpy())
+                all_targets.append(yb.detach().cpu().numpy())
+    avg_loss = total_loss / max(n_samples, 1)
+    if collect_predictions:
+        return avg_loss, np.concatenate(all_preds, axis=0), np.concatenate(all_targets, axis=0)
+    return avg_loss
 
 
 def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader,
                  cfg: TrainConfig, loss_fn: Callable | None = None,
                  device: torch.device | None = None,
-                 model_name: str = "model") -> tuple[nn.Module, TrainHistory]:
+                 model_name: str = "model",
+                 metric_fns: dict[str, Callable[[np.ndarray, np.ndarray], float]] | None = None
+                 ) -> tuple[nn.Module, TrainHistory]:
     """Entraîne `model` avec early stopping, gradient clipping et scheduler.
+
+    `metric_fns` : dict optionnel {nom: fonction(y_pred, y_true) -> float}, évalué sur la
+    validation à CHAQUE epoch (pas seulement à la fin) — ex. MAPE pour une régression,
+    F1/AUC pour une classification — pour visualiser leur évolution comme la loss.
 
     Retourne le modèle restauré à ses meilleurs poids (val loss minimale) et l'historique complet.
     """
@@ -121,6 +140,9 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
 
     history = TrainHistory()
     history.n_params_total, history.n_params_trainable = count_parameters(model)
+    metric_fns = metric_fns or {}
+    for name in metric_fns:
+        history.extra_metrics[name] = []
 
     best_val_loss = float("inf")
     best_state = copy.deepcopy(model.state_dict())
@@ -130,19 +152,29 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
     pbar = tqdm(range(1, cfg.epochs_max + 1), desc=f"Entraînement {model_name}", disable=not cfg.verbose)
     for epoch in pbar:
         train_loss = _run_epoch(model, train_loader, loss_fn, device, optimizer, cfg.grad_clip_max_norm)
-        val_loss = _run_epoch(model, val_loader, loss_fn, device, None, None)
+        if metric_fns:
+            val_loss, val_preds, val_targets = _run_epoch(model, val_loader, loss_fn, device, None, None,
+                                                            collect_predictions=True)
+        else:
+            val_loss = _run_epoch(model, val_loader, loss_fn, device, None, None)
 
         current_lr = optimizer.param_groups[0]["lr"]
         history.train_loss.append(train_loss)
         history.val_loss.append(val_loss)
         history.lr.append(current_lr)
 
+        postfix = {"train_loss": f"{train_loss:.5f}", "val_loss": f"{val_loss:.5f}", "lr": f"{current_lr:.2e}"}
+        for name, fn in metric_fns.items():
+            value = fn(val_preds, val_targets)
+            history.extra_metrics[name].append(value)
+            postfix[name] = f"{value:.4f}"
+
         if isinstance(scheduler, ReduceLROnPlateau):
             scheduler.step(val_loss)
         else:
             scheduler.step()
 
-        pbar.set_postfix({"train_loss": f"{train_loss:.5f}", "val_loss": f"{val_loss:.5f}", "lr": f"{current_lr:.2e}"})
+        pbar.set_postfix(postfix)
 
         if val_loss < best_val_loss - 1e-7:
             best_val_loss = val_loss
