@@ -1,7 +1,7 @@
 {
-  "model_type": "dense_ae",
-  "checkpoint": "fouling_dense_ae.pt",
-  "threshold": 1.2752712965011597,
-  "ewma_span": null,
-  "mean_lead_time_h": 3764.25
+  "model_type": "gru_residual",
+  "checkpoint": "fouling_gru_residual.pt",
+  "threshold": 231.93251308058467,
+  "ewma_span": 24,
+  "mean_lead_time_h": 3022.25
 }

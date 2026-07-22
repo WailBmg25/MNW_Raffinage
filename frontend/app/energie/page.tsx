@@ -31,7 +31,7 @@ export default function EnergiePage() {
     history?.timestamps.map((ts, i) => {
       const actual = history.actual.naphtha[i] !== undefined ? 1.38 + Math.sin(i / 12) * 0.03 : 1.38;
       return {
-        ts: new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+        ts,
         Actuelle: actual,
         Optimisée: actual * 0.93,
       };
@@ -62,6 +62,9 @@ export default function EnergiePage() {
               variant="area"
               yUnit=" kWh/bbl"
               data={specificEnergySeries}
+              xTickFormatter={(ts) =>
+                new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+              }
               series={[
                 { key: "Actuelle", label: "Énergie actuelle", color: "#f59e0b" },
                 { key: "Optimisée", label: "Énergie optimisée", color: "#10b981" },

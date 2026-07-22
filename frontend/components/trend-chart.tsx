@@ -29,6 +29,11 @@ interface TrendChartProps {
   variant?: "line" | "area";
   yUnit?: string;
   referenceLines?: { y: number; label: string; color?: string }[];
+  /** Formatte la valeur brute (ex: ISO timestamp, unique par point) en libellé affiché
+   * sur l'axe X et dans le tooltip. `xKey` doit rester une valeur UNIQUE par point
+   * (jamais un libellé déjà arrondi comme "nov. 25") sous peine de faire fusionner
+   * plusieurs points sur la même position de l'échelle catégorielle (bug de survol). */
+  xTickFormatter?: (value: string) => string;
 }
 
 export function TrendChart({
@@ -39,6 +44,7 @@ export function TrendChart({
   variant = "line",
   yUnit = "",
   referenceLines,
+  xTickFormatter,
 }: TrendChartProps) {
   const Chart = variant === "area" ? AreaChart : LineChart;
 
@@ -51,6 +57,8 @@ export function TrendChart({
           tick={{ fill: "#94a3b8", fontSize: 11 }}
           tickLine={{ stroke: "#1e293b" }}
           axisLine={{ stroke: "#1e293b" }}
+          tickFormatter={xTickFormatter}
+          minTickGap={24}
         />
         <YAxis
           tick={{ fill: "#94a3b8", fontSize: 11 }}
@@ -67,6 +75,7 @@ export function TrendChart({
             fontSize: 12,
           }}
           labelStyle={{ color: "#e2e8f0" }}
+          labelFormatter={xTickFormatter ? (label) => xTickFormatter(String(label)) : undefined}
           isAnimationActive={false}
         />
         <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} />

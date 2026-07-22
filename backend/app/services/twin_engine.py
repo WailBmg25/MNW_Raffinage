@@ -111,7 +111,16 @@ class TwinEngine:
             current, trend, days = 0.0, "stable", None
             index_norm, hist_idx = [], []
 
-        hidden = self.hidden_df["fouling_resistance"].reindex(hist_idx).tolist() if len(hist_idx) else []
+        # `fouling_resistance` est en unités physiques (m2K/W, ordre de grandeur 1e-3) alors que
+        # `index_norm` est un score normalisé ~[0,1] (score d'anomalie / seuil) : on ramène la
+        # vérité terrain à la même échelle ~[0,1] (résistance / seuil physique de nettoyage) pour
+        # que les deux courbes soient comparables sur un même axe (1.0 = nettoyage nécessaire
+        # côté vérité terrain, cohérent avec le seuil affiché côté indice estimé).
+        cleaning_threshold = self.cfg["data_generator"]["energy"]["cleaning_threshold"]
+        hidden = (
+            (self.hidden_df["fouling_resistance"].reindex(hist_idx) / cleaning_threshold).tolist()
+            if len(hist_idx) else []
+        )
         cleanings = self.hidden_df.index[self.hidden_df["is_cleaning_event"] == 1].tolist()
 
         episodes = []

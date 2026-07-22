@@ -36,19 +36,26 @@ export const perCutMape = {
 
 export const objectivesSummary = [
   { id: 1, label: "Rendements des coupes (MAPE < 5%)", achieved: true, value: "2.99 % (RNN simple)" },
-  { id: 2, label: "Détection du fouling (> 24h avant nettoyage)", achieved: true, value: "3764 h (autoencodeur dense)" },
-  { id: 3, label: "Optimisation énergétique (gain > 5%)", achieved: true, value: "5.53 % (716 $/j, 4.13 tCO2/j)" },
+  { id: 2, label: "Détection du fouling (> 24h avant nettoyage)", achieved: true, value: "3022 h (résidus GRU, corr. vérité terrain 0.49)" },
+  { id: 3, label: "Optimisation énergétique (gain > 5%)", achieved: true, value: "5.53 % (774 $/j, 4.13 tCO2/j)" },
   { id: 4, label: "Qualité produits (corrélation > 0.9)", achieved: true, value: "0.971 (GRU multi-sorties)" },
-  { id: 5, label: "Alertes temps réel (latence < 1 min)", achieved: true, value: "~23 ms" },
+  { id: 5, label: "Alertes temps réel (latence < 1 min)", achieved: true, value: "~55 ms (moyenne), 226 ms (max)" },
 ];
 
+// `corrVeriteTerrain` : corrélation de Pearson entre le score brut de la méthode et la
+// résistance d'encrassement cachée (vérité terrain), sur l'historique complet (2 ans).
+// Ajoutée après coup car precision/rappel/F1 sont tous quasi nuls ici (déséquilibre extrême
+// de l'étiquette rare "cleaning_needed_within_24h") et ne discriminent pas entre méthodes ;
+// la corrélation est le critère qui a déterminé le choix du modèle de production.
 export const foulingResults = [
-  { method: "dense_ae", precision: 0.032, recall: 0.542, f1: 0.060, auc: 0.765, leadTimeH: 3764.25, params: 516_128 },
-  { method: "lstm_ae", precision: 0.012, recall: 0.583, f1: 0.024, auc: 0.633, leadTimeH: 4128.75, params: 26_163 },
-  { method: "vae", precision: 0.012, recall: 0.219, f1: 0.024, auc: 0.712, leadTimeH: 3413.75, params: 259_808 },
-  { method: "conv_ae", precision: 0.011, recall: 0.615, f1: 0.022, auc: 0.624, leadTimeH: 3850.50, params: 19_331 },
-  { method: "gru_residual", precision: 0.009, recall: 0.323, f1: 0.018, auc: 0.676, leadTimeH: 2971.75, params: 57_793 },
+  { method: "gru_residual", precision: 0.009, recall: 0.323, f1: 0.018, auc: 0.671, leadTimeH: 3022.25, params: 57_793, corrVeriteTerrain: 0.490 },
+  { method: "dense_ae", precision: 0.035, recall: 0.135, f1: 0.055, auc: 0.780, leadTimeH: 2143.50, params: 516_128, corrVeriteTerrain: 0.265 },
+  { method: "conv_ae", precision: 0.010, recall: 0.573, f1: 0.019, auc: 0.589, leadTimeH: 3751.50, params: 19_331, corrVeriteTerrain: 0.250 },
+  { method: "lstm_ae", precision: 0.024, recall: 0.469, f1: 0.046, auc: 0.652, leadTimeH: 4114.00, params: 26_163, corrVeriteTerrain: 0.153 },
+  { method: "vae", precision: 0.006, recall: 0.156, f1: 0.012, auc: 0.602, leadTimeH: 3974.25, params: 259_808, corrVeriteTerrain: 0.062 },
 ];
+
+export const productionFoulingMethod = { name: "gru_residual", corrVeriteTerrain: 0.490, leadTimeH: 3022.25 };
 
 export const qualityCorrelations = {
   naphtha_final_boiling_point: 0.966,

@@ -12,10 +12,10 @@ aucun algorithme de machine learning classique (scikit-learn n'est utilisé que 
 | # | Objectif | Critère de succès | Solution DL | Résultat obtenu |
 |---|----------|--------------------|--------------|-----------------|
 | 1 | Prédire les rendements des coupes (naphta, kérosène, gazole, résidu) | MAPE < 5 % par coupe | LSTM/GRU/TCN/Transformer (8 architectures comparées) | **2.99 %** (RNN simple) ✅ |
-| 2 | Détecter le fouling (encrassement) | Détection > 24 h avant nettoyage | Autoencodeurs + résidus GRU (5 approches comparées) | **~3764 h** (autoencodeur dense) ✅ |
+| 2 | Détecter le fouling (encrassement) | Détection > 24 h avant nettoyage | Autoencodeurs + résidus GRU (5 approches comparées) | **~3022 h** (résidus GRU, corr. vérité terrain 0.49) ✅ |
 | 3 | Optimiser la température du four (COT) | Gain énergétique > 5 % | Surrogate NN + gradient sur les entrées | **5.53 %**, 774 $/j, 4.13 tCO₂/j ✅ |
 | 4 | Prédire la qualité des produits (soft sensor labo) | Corrélation > 0.9 | GRU multi-sorties | **0.971** ✅ |
-| 5 | Système d'alerte temps réel | Latence < 1 min | Pipeline d'inférence + moteur d'alertes | **~23 ms** en moyenne ✅ |
+| 5 | Système d'alerte temps réel | Latence < 1 min | Pipeline d'inférence + moteur d'alertes | **~23 ms** en moyenne (174 ms max) ✅ |
 
 Le rapport détaillé, généré automatiquement par le notebook 06, est disponible dans
 [`data/results/model_report.md`](data/results/model_report.md).
@@ -146,7 +146,7 @@ Thème sombre « salle de contrôle » (cyan/ambre/rouge/émeraude), 7 pages :
 - **`/jumeau`** — synoptique interactif du procédé complet (React Flow), capteurs live,
   santé des équipements, tiroir de détail par capteur (mesuré vs prédit).
 - **`/rendements`** — prédit vs réel par coupe, simulateur what-if.
-- **`/encrassement`** — indice de fouling, timeline 2 ans, épisodes détectés.
+- **`/encrassement`** — indice de fouling (résidu GRU), historique 60 jours vs vérité terrain, épisodes détectés.
 - **`/energie`** — comparaison énergie réelle vs optimisée, bouton d'optimisation à la demande.
 - **`/alertes`** — journal filtrable des alertes.
 - **`/documentation`** — récapitulatif des objectifs et des 8 architectures comparées.

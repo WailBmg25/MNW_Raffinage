@@ -114,17 +114,24 @@ dropout (0.0/0.2/0.4) sur le sur-apprentissage du LSTM.
 
 ### 3.3 Notebook 04 — Détection du fouling (5 approches)
 
-| Méthode | Precision | Recall | F1 | AUC | **Avance de détection** | Paramètres |
-|---|---|---|---|---|---|---|
-| Autoencodeur dense | 0.032 | 0.542 | 0.060 | 0.765 | **3764 h** | 516 128 |
-| Autoencodeur LSTM (seq2seq) | 0.012 | 0.583 | 0.024 | 0.633 | 4129 h | 26 163 |
-| VAE | 0.012 | 0.219 | 0.024 | 0.712 | 3414 h | 259 808 |
-| Autoencodeur conv1D | 0.011 | 0.615 | 0.022 | 0.624 | 3851 h | 19 331 |
-| Résidu GRU | 0.009 | 0.323 | 0.018 | 0.676 | 2972 h | 57 793 |
+| Méthode | Precision | Recall | F1 | AUC | Avance de détection | Corr. vérité terrain | Paramètres |
+|---|---|---|---|---|---|---|---|
+| **Résidu GRU** | 0.009 | 0.323 | 0.018 | 0.671 | 3022 h | **0.490** | 57 793 |
+| Autoencodeur dense | 0.035 | 0.135 | 0.055 | 0.780 | 2144 h | 0.265 | 516 128 |
+| Autoencodeur conv1D | 0.010 | 0.573 | 0.019 | 0.589 | 3752 h | 0.250 | 19 331 |
+| Autoencodeur LSTM (seq2seq) | 0.024 | 0.469 | 0.046 | 0.652 | 4114 h | 0.153 | 26 163 |
+| VAE | 0.006 | 0.156 | 0.012 | 0.602 | 3974 h | 0.062 | 259 808 |
 
-**Résultat : les 5 méthodes dépassent largement l'objectif de 24 h d'avance. ✅** (précision
-faible pour toutes — fort déséquilibre de classes, ~0.9 % d'heures positives — mais rappel et
-AUC démontrent un pouvoir de détection réel). **Production : autoencodeur dense** (meilleur F1/AUC).
+**Résultat : les 5 méthodes dépassent largement l'objectif de 24 h d'avance. ✅** Precision/F1
+sont quasi nuls pour toutes les méthodes (déséquilibre extrême de l'étiquette rare
+`cleaning_needed_within_24h`, ~0.9 % d'heures positives) et ne sont donc pas discriminants entre
+méthodes. La **corrélation à la vérité terrain cachée** (`fouling_resistance`) est le critère
+retenu pour le choix du modèle de production : le **résidu GRU** — qui prédit spécifiquement la
+température de sortie du train de préchauffe (directement pilotée par le fouling dans le
+générateur de données) plutôt que de reconstruire les 88 variables du procédé — est nettement le
+plus corrélé (0.49 contre 0.06–0.27 pour les autoencodeurs, qui réagissent à toute variation
+opératoire — changement de brut, rampe de charge — pas seulement au fouling). **Production :
+résidu GRU**, score lissé par EWMA causal (span 24 h) pour limiter le bruit du résidu brut.
 
 ![Timeline vérité cachée vs détections](images/04_timeline_verite_vs_detections.png)
 ![Courbes ROC](images/04_roc_curves.png)
@@ -165,7 +172,7 @@ opératoires. Cibles standardisées séparément (échelles très différentes) 
 
 Pipeline temps réel : rejeu heure par heure du jeu de test (2633 h), 3 réseaux en inférence
 continue (rendements, fouling, qualité) + moteur d'alertes (anti-rebond). **Latence moyenne
-mesurée : ~55 ms** (objectif < 1 min). 116 alertes générées lors du backtest.
+mesurée : ~23 ms** (objectif < 1 min). 107 alertes générées lors du backtest.
 
 ![Courbe d'apprentissage — soft sensor qualité](images/06_learning_curve_quality.png)
 ![Prédit vs réel — soft sensor qualité](images/06_quality_parity.png)
@@ -176,10 +183,10 @@ mesurée : ~55 ms** (objectif < 1 min). 116 alertes générées lors du backtest
 | # | Objectif | Critère | Résultat | Statut |
 |---|----------|---------|----------|--------|
 | 1 | Rendements | MAPE < 5 % | 2.99 % (RNN simple) | ✅ |
-| 2 | Fouling | > 24 h avant nettoyage | 3764 h (autoencodeur dense) | ✅ |
+| 2 | Fouling | > 24 h avant nettoyage | 3022 h (résidu GRU, corr. vérité terrain 0.49) | ✅ |
 | 3 | Énergie | Gain > 5 % | 5.53 % (774 $/j, 4.13 tCO₂/j) | ✅ |
 | 4 | Qualité | Corrélation > 0.9 | 0.971 | ✅ |
-| 5 | Alertes temps réel | Latence < 1 min | ~55 ms (max 226 ms) | ✅ |
+| 5 | Alertes temps réel | Latence < 1 min | ~23 ms (max 174 ms) | ✅ |
 
 **5/5 objectifs atteints.**
 
@@ -201,7 +208,7 @@ production (rendements, fouling, qualité, surrogate énergie), génère des ale
 | **Vue d'ensemble (`/`)** | KPI temps réel (débit, rendement distillats, énergie, fouling, alertes), aire empilée des 4 rendements sur fenêtre glissante 48 h, flux d'alertes, compteurs de gains |
 | **Jumeau numérique (`/jumeau`)** | Synoptique interactif du procédé complet (React Flow) : Brut → Dessaleur → Train de préchauffe → Four → Colonne → Vapocraqueur, avec capteurs live et santé des équipements calculée par les modèles |
 | **Rendements (`/rendements`)** | Courbes prédit/réel par coupe, jauges de MAPE, simulateur what-if (sliders COT/reflux/débit → prédiction instantanée) |
-| **Encrassement (`/encrassement`)** | Indice de fouling, estimation du délai avant nettoyage, timeline 2 ans, épisodes de détection |
+| **Encrassement (`/encrassement`)** | Indice de fouling (résidu GRU), estimation du délai avant nettoyage, historique 60 jours vs vérité terrain (normalisée sur le seuil de nettoyage physique), épisodes de détection |
 | **Énergie (`/energie`)** | Comparaison énergie réelle vs optimisée, bouton d'optimisation à la demande, compteurs cumulés d'économies |
 | **Alertes (`/alertes`)** | Journal filtrable des alertes (niveau, type, équipement) |
 | **Documentation (`/documentation`)** | Récapitulatif des objectifs, des 8 architectures comparées, schéma d'architecture |
@@ -212,6 +219,7 @@ production (rendements, fouling, qualité, surrogate énergie), génère des ale
 ![Synoptique du jumeau numérique](images/dashboard_jumeau.png)
 ![Page rendements](images/dashboard_rendements.png)
 ![Page énergie — après optimisation à la demande](images/dashboard_energie.png)
+![Page encrassement — indice estimé (résidu GRU) vs vérité terrain](images/dashboard_encrassement.png)
 
 ---
 
