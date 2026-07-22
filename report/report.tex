@@ -79,6 +79,20 @@ horaires ($\approx$17 500 points), plus un échantillonnage labo toutes les 8 h 
 réseaux de neurones PyTorch. scikit-learn n'est utilisé que pour \texttt{StandardScaler}, les
 métriques et le split train/val/test.
 
+\textbf{Méthodologie de mesure} — pour rendre les comparaisons honnêtes, chaque tâche est
+évaluée avec \textbf{plusieurs métriques complémentaires}, jamais une seule :
+\begin{itemize}
+  \item \textbf{Régression} (rendements, énergie, qualité) : MAPE (\%, erreur relative —
+  intuitive mais instable quand la cible est proche de zéro), \textbf{RMSE} (erreur absolue,
+  dans l'unité de la cible — pénalise davantage les grosses erreurs), et \textbf{R\textsuperscript{2}}
+  (fraction de variance expliquée — situe le modèle par rapport à une baseline "prédire la
+  moyenne").
+  \item \textbf{Classification} (fouling) : precision, recall, F1, \textbf{accuracy}, AUC — et
+  deux métriques ajoutées après coup car les quatre précédentes se sont révélées peu
+  informatives ici (voir §\ref{sec:fouling}) : l'\textbf{avance moyenne de détection} (métier)
+  et la \textbf{corrélation à la vérité terrain cachée}.
+\end{itemize}
+
 \section{Techniques de Deep Learning utilisées — étude comparative}
 
 \begin{table}[h]
@@ -106,23 +120,120 @@ Optimisation & Surrogate MLP + gradient sur les entrées & Optimisation énergé
 Architecture & Avantage principal & Limite observée \\
 \midrule
 \textbf{RNN simple} & Meilleur compromis biais/variance ici ; peu de paramètres & Mémoire courte \\
-LSTM / GRU / BiLSTM & Mémoire longue via portes & Sur-paramétrés ici (peu de gain) \\
+LSTM / GRU / BiLSTM & Mémoire longue via portes & Sur-paramétrés ici (peu de gain, parfois moins bon) \\
 TCN & Champ réceptif large, parallélisable & Sensible au nombre de blocs \\
 Transformer & Dépendances globales via attention & Plus lent, besoin de plus de données \\
-CNN 1D & Rapide, motifs locaux & Moins adapté aux dépendances longues \\
+CNN 1D & Rapide, motifs locaux & Champ réceptif par couche limité — le pire des 8 ici \\
 MLP (baseline) & Simple, rapide & Ignore l'historique temporel \\
 \bottomrule
 \end{tabular}
 \caption{Comparatif qualitatif (notebook 03, tâche rendements)}
 \end{table}
 
-Sur ce jeu de données (fenêtres de 24 h), les architectures \textbf{plus simples} (RNN, TCN,
-MLP) égalent voire dépassent les architectures plus complexes — signe que la tâche ne
-nécessite pas une mémoire très longue. Pour le fouling, les \textbf{autoencodeurs} (entraînés
-sur périodes propres) détectent une dérive via l'erreur de reconstruction ; l'approche par
-\textbf{résidu GRU} surveille l'écart mesuré/prédit d'un capteur clé. Pour l'énergie, un
-\textbf{réseau surrogate} différentiable permet une \textbf{descente de gradient sur les
-entrées} (COT, reflux).
+Sur ce jeu de données (fenêtres de 24 h, signal dominé par les conditions récentes — confirmé
+par l'ACF/PACF du notebook 01), les architectures \textbf{plus simples} (RNN, TCN, MLP) égalent
+voire dépassent les architectures plus complexes (LSTM, BiLSTM, GRU, Transformer) : la tâche ne
+nécessite pas une mémoire très longue, et le jeu d'entraînement ($\approx$12 300 séquences) est
+trop petit pour que la capacité supplémentaire des architectures profondes se traduise en un
+vrai gain (voir l'analyse détaillée §\ref{sec:nb03}).
+
+Pour la détection de fouling (notebook 04), les \textbf{autoencodeurs} (entraînés sur périodes
+propres) détectent une dérive via l'erreur de reconstruction globale (83 variables) ; l'approche
+par \textbf{résidu GRU} prédit directement un unique capteur physiquement piloté par le fouling
+et surveille l'écart mesuré/prédit — plus ciblée, elle se révèle nettement plus corrélée à la
+vérité terrain cachée (§\ref{sec:fouling}).
+
+Pour l'énergie, un \textbf{réseau surrogate} différentiable permet une \textbf{descente de
+gradient sur les entrées} (COT, reflux) — une alternative légère à une recherche exhaustive.
+
+\subsection*{Illustrations schématiques des architectures}
+
+Les schémas ci-dessous illustrent chaque architecture utilisée dans le projet (prompts de
+génération et noms de fichiers exacts fournis séparément) :
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_mlp.png}
+\caption{MLP — perceptron multicouche}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_rnn.png}
+\caption{RNN simple}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_lstm.png}
+\caption{LSTM}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_bilstm.png}
+\caption{LSTM bidirectionnel}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_gru.png}
+\caption{GRU (générique + multi-sorties)}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_gru_residual.png}
+\caption{Résidu GRU — détection de fouling}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_cnn1d.png}
+\caption{CNN 1D}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_tcn.png}
+\caption{TCN — convolutions dilatées causales}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_transformer.png}
+\caption{Transformer encoder — attention multi-têtes}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_autoencoder_dense.png}
+\caption{Autoencodeur dense}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_autoencoder_conv1d.png}
+\caption{Autoencodeur convolutionnel 1D}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_autoencoder_lstm.png}
+\caption{Autoencodeur LSTM (seq2seq)}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_vae.png}
+\caption{VAE — autoencodeur variationnel}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{arch_surrogate_gradient.png}
+\caption{Surrogate + descente de gradient sur les entrées}
+\end{figure}
 
 \section{Résultats détaillés par notebook}
 
@@ -139,39 +250,47 @@ capteur, jointure asof labo (délai 4h, zéro fuite), split temporel strict 70/1
 \end{figure}
 
 \subsection{Notebook 03 — Prédiction des rendements (8 architectures)}
+\label{sec:nb03}
 
 \begin{table}[h]
 \centering
 \small
-\begin{tabular}{lrrrrrrr}
+\begin{tabular}{lrrrrrrrrr}
 \toprule
-Architecture & Naphta & Kéro. & Gazole & Résidu & \textbf{Global} & Params & Temps (s) \\
+Architecture & Naphta & Kéro. & Gazole & Résidu & \textbf{MAPE glob.} & \textbf{RMSE glob.} & \textbf{R\textsuperscript{2}} & Params & Temps (s) \\
 \midrule
-\textbf{RNN simple} & 4.95\% & 1.82\% & 1.12\% & 4.06\% & \textbf{2.99\%} & 13 956 & 52.9 \\
-TCN & 5.30\% & 2.16\% & 1.24\% & 4.32\% & 3.26\% & 42 884 & 103.1 \\
-MLP (baseline) & 5.37\% & 2.24\% & 1.22\% & 4.20\% & 3.26\% & 19 652 & 24.1 \\
-LSTM & 5.37\% & 2.23\% & 1.25\% & 4.31\% & 3.29\% & 75 844 & 114.4 \\
-LSTM bidirectionnel & 5.52\% & 2.12\% & 1.28\% & 4.43\% & 3.34\% & 184 132 & 185.8 \\
-GRU & 5.76\% & 2.29\% & 1.25\% & 4.28\% & 3.40\% & 57 988 & 161.5 \\
-Transformer & 6.06\% & 2.38\% & 1.42\% & 4.41\% & 3.57\% & 74 660 & 314.7 \\
-CNN 1D & 6.85\% & 2.67\% & 1.74\% & 5.49\% & 4.19\% & 29 092 & 79.4 \\
+\textbf{RNN simple} & 4.95\% & 1.82\% & 1.12\% & 4.06\% & \textbf{2.99\%} & \textbf{0.0137} & \textbf{0.861} & 13 956 & 52.9 \\
+TCN & 5.30\% & 2.16\% & 1.24\% & 4.32\% & 3.26\% & 0.0143 & 0.840 & 42 884 & 103.1 \\
+MLP (baseline) & 5.37\% & 2.24\% & 1.22\% & 4.20\% & 3.26\% & 0.0142 & 0.842 & 19 652 & 24.1 \\
+LSTM & 5.37\% & 2.23\% & 1.25\% & 4.31\% & 3.29\% & 0.0144 & 0.834 & 75 844 & 114.4 \\
+LSTM bidirectionnel & 5.52\% & 2.12\% & 1.28\% & 4.43\% & 3.34\% & 0.0144 & 0.831 & 184 132 & 185.8 \\
+GRU & 5.76\% & 2.29\% & 1.25\% & 4.28\% & 3.40\% & 0.0146 & 0.833 & 57 988 & 161.5 \\
+Transformer & 6.06\% & 2.38\% & 1.42\% & 4.41\% & 3.57\% & 0.0152 & 0.802 & 74 660 & 314.7 \\
+CNN 1D & 6.85\% & 2.67\% & 1.74\% & 5.49\% & 4.19\% & 0.0160 & 0.740 & 29 092 & 79.4 \\
 \bottomrule
 \end{tabular}
-\caption{MAPE par coupe et global — 8 architectures (notebook 03)}
+\caption{MAPE/RMSE/R\textsuperscript{2} — 8 architectures (notebook 03)}
 \end{table}
 
 \textbf{Résultat : objectif MAPE < 5\% atteint (RNN simple, 2.99\% global). \checkmark}
+
+\textbf{Pourquoi le RNN simple gagne — et pourquoi les 3 métriques racontent la même histoire.}
+MAPE, RMSE et R\textsuperscript{2} classent les 8 architectures \textbf{dans le même ordre} (du
+RNN simple, meilleur sur les 3, au CNN 1D, pire sur les 3) — signe que le classement est robuste
+et ne tient pas à un artefact d'une métrique en particulier. La fenêtre d'entrée ne fait que 24h,
+et l'ACF/PACF (notebook 01) montre que le rendement dépend surtout des conditions
+\textbf{récentes}, pas d'un historique long : les architectures à grande capacité de mémoire
+(LSTM, BiLSTM, GRU, Transformer — 58k à 184k paramètres) n'ont rien de plus à exploiter que le
+RNN simple (14k paramètres), tout en étant plus difficiles à entraîner sur seulement
+$\approx$12 300 séquences (sur-paramétrisation). Le CNN 1D est le seul cas qualitativement
+différent : son champ réceptif par couche est trop court pour couvrir 24h avec 3 blocs, d'où le
+R\textsuperscript{2} le plus faible (0.740) — le TCN, qui résout ce problème par des convolutions
+\textbf{dilatées}, obtient au contraire le 2\textsuperscript{e} meilleur score.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.85\textwidth]{03_comparaison_architectures.png}
 \caption{Comparatif des 8 architectures — MAPE global}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.85\textwidth]{03_learning_curve_rnn.png}
-\caption{Courbe d'apprentissage — RNN simple (architecture retenue)}
 \end{figure}
 
 \begin{figure}[h]
@@ -186,45 +305,115 @@ CNN 1D & 6.85\% & 2.67\% & 1.74\% & 5.49\% & 4.19\% & 29 092 & 79.4 \\
 \caption{Prédit vs réel sur 2 semaines de test}
 \end{figure}
 
+\textbf{Courbes d'apprentissage des 8 architectures} (loss + MAPE de validation par epoch) :
+
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.7\textwidth]{03_optimizer_comparison.png}
-\caption{Comparaison d'optimiseurs (SGD / Adam / AdamW)}
+\includegraphics[width=0.48\textwidth]{03_learning_curve_rnn.png}
+\includegraphics[width=0.48\textwidth]{03_learning_curve_mlp.png}
+\caption{RNN simple (gagnant) et MLP (baseline)}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.7\textwidth]{03_dropout_comparison.png}
-\caption{Effet du dropout (0.0 / 0.2 / 0.4) sur le sur-apprentissage}
+\includegraphics[width=0.48\textwidth]{03_learning_curve_tcn.png}
+\includegraphics[width=0.48\textwidth]{03_learning_curve_lstm.png}
+\caption{TCN et LSTM}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{03_learning_curve_bilstm.png}
+\includegraphics[width=0.48\textwidth]{03_learning_curve_gru.png}
+\caption{LSTM bidirectionnel et GRU}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{03_learning_curve_transformer.png}
+\includegraphics[width=0.48\textwidth]{03_learning_curve_cnn1d.png}
+\caption{Transformer et CNN 1D}
+\end{figure}
+
+Mini-études complémentaires : comparaison d'optimiseurs (SGD vs Adam vs AdamW) et effet du
+dropout (0.0/0.2/0.4) sur le sur-apprentissage du LSTM.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{03_optimizer_comparison.png}
+\includegraphics[width=0.48\textwidth]{03_dropout_comparison.png}
+\caption{Comparaison d'optimiseurs et effet du dropout}
 \end{figure}
 
 \subsection{Notebook 04 — Détection du fouling (5 approches)}
+\label{sec:fouling}
 
 \begin{table}[h]
 \centering
 \small
-\begin{tabular}{lrrrrrrr}
+\begin{tabular}{lrrrrrrrr}
 \toprule
-Méthode & Precision & Recall & F1 & AUC & Avance (h) & Corr. vérité & Params \\
+Méthode & Precision & Recall & F1 & \textbf{Accuracy} & AUC & Avance (h) & Corr. vérité & Params \\
 \midrule
-\textbf{Résidu GRU} & 0.009 & 0.323 & 0.018 & 0.671 & 3022 & \textbf{0.490} & 57 793 \\
-Autoencodeur dense & 0.035 & 0.135 & 0.055 & 0.780 & 2144 & 0.265 & 516 128 \\
-Autoencodeur conv1D & 0.010 & 0.573 & 0.019 & 0.589 & 3752 & 0.250 & 19 331 \\
-Autoencodeur LSTM & 0.024 & 0.469 & 0.046 & 0.652 & 4114 & 0.153 & 26 163 \\
-VAE & 0.006 & 0.156 & 0.012 & 0.602 & 3974 & 0.062 & 259 808 \\
+\textbf{Résidu GRU} & 0.009 & 0.323 & 0.018 & 0.802 & 0.671 & 3022 & \textbf{0.490} & 57 793 \\
+Autoencodeur dense & 0.035 & 0.135 & 0.055 & \textbf{0.975} & 0.780 & 2144 & 0.265 & 516 128 \\
+Autoencodeur conv1D & 0.010 & 0.573 & 0.019 & 0.678 & 0.589 & 3752 & 0.250 & 19 331 \\
+Autoencodeur LSTM & 0.024 & 0.469 & 0.046 & 0.894 & 0.652 & 4114 & 0.153 & 26 163 \\
+VAE & 0.006 & 0.156 & 0.012 & 0.861 & 0.602 & 3974 & 0.062 & 259 808 \\
 \bottomrule
 \end{tabular}
 \caption{Comparatif des 5 approches de détection de fouling (notebook 04)}
 \end{table}
 
-\textbf{Résultat : les 5 méthodes dépassent l'objectif de 24h. \checkmark} Precision/F1 sont
-quasi nuls pour toutes les méthodes (déséquilibre extrême de l'étiquette rare, $\sim$0.9\%
-d'heures positives) et ne sont donc pas discriminants. La \textbf{corrélation à la vérité
-terrain cachée} (\texttt{fouling\_resistance}) départage les méthodes : le \textbf{résidu GRU}
-— qui prédit spécifiquement la température de sortie du préchauffe (directement pilotée par le
-fouling) plutôt que de reconstruire les 88 variables du procédé — est nettement le plus corrélé
-(0.49 contre 0.06--0.27 pour les autoencodeurs, sensibles à toute variation opératoire).
-\textbf{Production : résidu GRU}, score lissé par EWMA causal (span 24h).
+\textbf{Résultat : les 5 méthodes dépassent largement l'objectif de 24h. \checkmark}
+
+\textbf{Pourquoi precision/F1 sont quasi nuls pour toutes les méthodes, et pourquoi l'accuracy
+est trompeuse ici (le "paradoxe de l'accuracy").} Sur les 17 496 heures de test, seules
+\textbf{96 (0.55\%)} sont réellement étiquetées \texttt{cleaning\_needed\_within\_24h=1} (5
+nettoyages en 2 ans, fenêtre de 24h chacun). Détail du calcul pour le résidu GRU (méthode de
+production) :
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lr}
+\toprule
+\multicolumn{2}{l}{} \\
+\midrule
+Heures totales & 17 496 \\
+Heures réellement positives & 96 (0.55\%) \\
+Heures signalées "alerte" par le modèle & 3 443 (19.7\%) \\
+dont vrais positifs (TP) & 31 \\
+dont faux positifs (FP) & 3 412 \\
+\textbf{Precision} = TP/(TP+FP) & 31/3443 = \textbf{0.9\%} \\
+\textbf{Recall} = TP/(TP+FN) & 31/96 = \textbf{32.3\%} \\
+\textbf{Accuracy} = (TP+TN)/total & (31+13988)/17496 = \textbf{80.2\%} \\
+\bottomrule
+\end{tabular}
+\caption{Décomposition de la matrice de confusion — résidu GRU (production)}
+\end{table}
+
+Avec une base rate de seulement 0.55\%, un signalement \textbf{aléatoire} au même taux d'alerte
+(19.7\%) obtiendrait $\approx$19 TP par pur hasard — le modèle en obtient 31, un signal réel mais
+modeste (cohérent avec son AUC de 0.671). Le F1, moyenne harmonique de precision et recall,
+s'effondre vers la plus petite des deux valeurs dès qu'elles sont aussi déséquilibrées :
+F1 $\approx$ 0.018 est donc une conséquence arithmétique normale, pas une anomalie.
+
+\textbf{L'accuracy, elle, induit en erreur dans l'autre sens} : l'autoencodeur dense obtient
+\textbf{97.5\% d'accuracy} — la meilleure des 5 — simplement parce qu'il déclenche beaucoup
+moins d'alertes au total (donc moins de FP), pas parce qu'il détecte mieux le fouling. Il ne
+rappelle que 13.5\% des vraies heures positives et sa corrélation à la vérité terrain cachée
+n'est que de 0.265, contre 0.490 pour le résidu GRU. Sur un problème aussi déséquilibré (99.45\%
+de négatifs), l'accuracy est dominée par la classe majoritaire et \textbf{ne doit jamais être lue
+seule} — c'est exactement pourquoi ce projet a ajouté deux métriques métier (avance de
+détection, corrélation à la vérité terrain) plutôt que de choisir le modèle de production sur
+F1/accuracy.
+
+\textbf{Modèle de production : résidu GRU} — il prédit spécifiquement la température de sortie
+du train de préchauffe (directement pilotée par le fouling dans le générateur de données) plutôt
+que de reconstruire les 83 variables du procédé, ce qui explique sa bien meilleure corrélation à
+la vérité terrain (0.490 contre 0.062--0.265 pour les 4 autres, qui réagissent à toute variation
+opératoire — changement de brut, rampe de charge — pas seulement au fouling). Score lissé par
+EWMA causal (span 24h) pour limiter le bruit du résidu brut.
 
 \begin{figure}[h]
 \centering
@@ -250,10 +439,70 @@ fouling) plutôt que de reconstruire les 88 variables du procédé — est nette
 \caption{Espace latent du VAE (projection 2D)}
 \end{figure}
 
+\textbf{Courbes d'apprentissage des 5 approches} (les 4 autoencodeurs sont entraînés en
+reconstruction sur des séquences "propres" ; le résidu GRU est entraîné en régression sur
+\texttt{preheat\_outlet\_temp}) :
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{04_learning_curve_gru_residual.png}
+\includegraphics[width=0.48\textwidth]{04_learning_curve_dense_ae.png}
+\caption{Résidu GRU et autoencodeur dense}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{04_learning_curve_conv_ae.png}
+\includegraphics[width=0.48\textwidth]{04_learning_curve_lstm_ae.png}
+\caption{Autoencodeur conv1D et autoencodeur LSTM (seq2seq)}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.48\textwidth]{04_learning_curve_vae.png}
+\caption{VAE}
+\end{figure}
+
 \subsection{Notebook 05 — Optimisation énergétique}
 
-Surrogate MLP (128-128-64) prédisant (4 rendements + énergie spécifique). Optimisation par
-descente de gradient sur COT/reflux, poids gelés, sous contrainte de préservation des rendements.
+Surrogate MLP (128-128-64, BatchNorm + Dropout 0.3) prédisant (4 rendements + énergie
+spécifique) à partir des conditions opératoires instantanées (jeu non séquentiel, contrairement
+aux notebooks 03/04 — nécessaire pour que la descente de gradient sur COT/reflux ait un sens
+physique direct). Optimisation par descente de gradient sur COT/reflux, poids gelés, sous
+contrainte de préservation des rendements.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Cible & R\textsuperscript{2} & MAPE & RMSE \\
+\midrule
+Rendement naphta & 0.905 & 4.96\% & 0.0168 \\
+Rendement kérosène & 0.914 & 1.90\% & 0.0063 \\
+Rendement gazole & 0.539 & 1.39\% & 0.0054 \\
+Rendement résidu & 0.933 & 4.05\% & 0.0200 \\
+Énergie spécifique & \textbf{-0.123} & 7.94\% & 0.1587 \\
+\bottomrule
+\end{tabular}
+\caption{Performance du surrogate par sortie (jeu de test, notebook 05)}
+\end{table}
+
+\textbf{Pourquoi l'énergie spécifique a un R\textsuperscript{2} négatif malgré un MAPE
+raisonnable.} Dans le générateur de données, \texttt{specific\_energy} est piloté
+\textbf{principalement par le fouling caché} (jamais une feature) et le débit — pas par
+COT/reflux. Pour que la descente de gradient ait un signal à exploiter, ce notebook ajoute un
+terme correctif physique explicite et documenté (+0.006~kWh/bbl/°C au-dessus du COT setpoint,
++0.20~kWh/bbl par unité de reflux au-dessus de la borne basse) — un signal volontairement
+\textbf{faible} comparé à la variance totale (dominée par le fouling, non observable). Résultat :
+l'erreur absolue du modèle (RMSE 0.159~kWh/bbl, sur une cible qui varie peu autour de
+$\approx$1.35-1.4~kWh/bbl) n'est pas meilleure que prédire la moyenne — R\textsuperscript{2}
+négatif — alors que le MAPE (7.94\%) paraît correct. Ceci n'invalide pas l'optimisation : la
+descente de gradient n'a besoin que de la \textbf{sensibilité directionnelle} correcte
+($\partial$énergie/$\partial$COT, $\partial$énergie/$\partial$reflux), pas d'une prévision
+absolue parfaite — le gain de 5.53\% obtenu en backtest (ci-dessous) le confirme. Le rendement
+gazole a le même symptôme à moindre échelle (R\textsuperscript{2}=0.539 malgré un MAPE bas de
+1.39\%) : sa plage de variation est petite, donc même une erreur relative faible laisse peu de
+variance "expliquée" par rapport au bruit.
 
 \begin{table}[h]
 \centering
@@ -267,19 +516,14 @@ Respect de la contrainte de rendement & 96.3 \% des échantillons \\
 Économies & $\approx$ 774 \$/jour, 4.13 tCO$_2$/jour évitées \\
 \bottomrule
 \end{tabular}
-\caption{Résultats de l'optimisation énergétique (notebook 05)}
+\caption{Résultats de l'optimisation énergétique — backtest (notebook 05)}
 \end{table}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.7\textwidth]{05_learning_curve_surrogate.png}
-\caption{Courbe d'apprentissage du surrogate}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.7\textwidth]{05_convergence_gradient.png}
-\caption{Convergence de l'optimisation par gradient}
+\includegraphics[width=0.48\textwidth]{05_learning_curve_surrogate.png}
+\includegraphics[width=0.48\textwidth]{05_convergence_gradient.png}
+\caption{Courbe d'apprentissage du surrogate et convergence de l'optimisation}
 \end{figure}
 
 \begin{figure}[h]
@@ -290,28 +534,42 @@ Respect de la contrainte de rendement & 96.3 \% des échantillons \\
 
 \subsection{Notebook 06 — Soft sensor qualité + pipeline temps réel}
 
-GRU multi-sorties (5 cibles qualité labo), cibles standardisées séparément.
+GRU multi-sorties (5 cibles qualité labo) entraîné sur fenêtres de 24h. Cibles standardisées
+séparément (échelles très différentes, ex. \texttt{residue\_viscosity} $\approx$385 vs
+\texttt{sulfur\_content} $\approx$1.2) pour un apprentissage équilibré, puis dé-standardisées
+avant évaluation.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{lr}
+\begin{tabular}{lrrr}
 \toprule
-Cible qualité & Corrélation (test) \\
+Cible qualité & Corrélation & MAPE & RMSE \\
 \midrule
-Point final naphta & 0.966 \\
-Point éclair kérosène & 0.965 \\
-Indice de cétane gazole & 0.972 \\
-Viscosité résidu & 0.967 \\
-Teneur en soufre & 0.985 \\
-\textbf{Moyenne} & \textbf{0.971} \checkmark (objectif > 0.9) \\
+Point final naphta (°C) & 0.966 & 0.76\% & 1.646 \\
+Point éclair kérosène (°C) & 0.965 & 1.36\% & 0.804 \\
+Indice de cétane gazole & 0.972 & 1.41\% & 0.856 \\
+Viscosité résidu (cSt) & 0.967 & 1.52\% & 7.667 \\
+Teneur en soufre (\%pds) & 0.985 & 8.54\% & 0.133 \\
+\textbf{Moyenne (corrélation)} & \textbf{0.971} \checkmark (objectif > 0.9) & — & — \\
 \bottomrule
 \end{tabular}
-\caption{Corrélations du soft sensor qualité (notebook 06)}
+\caption{Corrélations, MAPE et RMSE du soft sensor qualité (notebook 06)}
 \end{table}
 
-Pipeline temps réel : rejeu heure par heure (2633 h), 3 réseaux en inférence continue + moteur
-d'alertes anti-rebond. \textbf{Latence moyenne mesurée : $\sim$23 ms} (objectif < 1 min). 107
-alertes générées lors du backtest.
+\textbf{Pourquoi le soufre a la meilleure corrélation mais le pire MAPE.}
+\texttt{sulfur\_content} a la plus petite échelle absolue ($\approx$1.2\%pds en moyenne) : une
+erreur absolue faible (RMSE 0.133, la plus petite des 5) se traduit en erreur \textbf{relative}
+élevée (8.54\%) simplement parce qu'on divise par un petit nombre. À l'inverse,
+\texttt{residue\_viscosity} a la plus grosse erreur absolue (RMSE 7.67~cSt) mais sur une échelle
+$\approx$385~cSt, donc un MAPE bas (1.52\%). La corrélation, invariante à l'échelle, montre que
+le modèle capture bien la \textbf{forme} de variation des deux cibles (0.985 et 0.967) — c'est
+exactement pourquoi aucune métrique seule ne suffit : RMSE dépend de l'unité, MAPE explose sur
+les petites échelles, la corrélation ne dit rien de l'erreur absolue.
+
+Pipeline temps réel : rejeu heure par heure (2633h), 3 réseaux en inférence continue + moteur
+d'alertes anti-rebond. \textbf{Latence mesurée : 22.6~ms en moyenne, 36.6~ms (p95), 174.0~ms
+(max)} (objectif < 1 min). 107 alertes générées lors du backtest (101 warning, 6 critical) : 66
+rendements/dérive, 35 qualité, 5 fouling, 1 énergie.
 
 \begin{figure}[h]
 \centering
@@ -348,6 +606,42 @@ alertes générées lors du backtest.
 \end{tabular}
 \caption{5/5 objectifs atteints — rapport généré automatiquement (\texttt{model\_report.md})}
 \end{table}
+
+\section{Du jumeau numérique aux données réelles — pipeline de déploiement}
+
+Le dashboard actuel rejoue un jeu de test \textbf{synthétique} figé. Le schéma ci-dessous montre
+ce qui changerait (et ce qui ne changerait pas) pour un déploiement sur une raffinerie réelle :
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{pipeline_deploiement_reel.png}
+\caption{Pipeline de déploiement réel — du capteur terrain à la décision opérateur}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{2.6cm}p{5.2cm}p{7.2cm}}
+\toprule
+Étape & En synthétique (aujourd'hui) & En réel (déploiement) \\
+\midrule
+1. Terrain & \texttt{src/data\_generator.py} (bilans simplifiés) & Capteurs CDU (DCS/PLC), historian (PI/AVEVA), LIMS labo, GMAO \\
+2. Ingestion & Lecture de CSV (\texttt{data/raw/}) & Connecteurs OPC-UA / API historian, bus streaming (Kafka/MQTT), horodatage et resynchronisation, détection de capteurs en panne \\
+3. Prétraitement & \texttt{src/preprocessing.py} (identique) & \textbf{Même code} : fenêtres glissantes, scalers figés au train, jointure asof labo (zéro fuite), imputation/correction de dérive \\
+4. Inférence & 4 réseaux rejoués sur le jeu de test & \textbf{Mêmes 4 réseaux} servis par le même backend FastAPI, sur des tenseurs construits à partir de données réelles \\
+5. Décision & Alertes simulées, aucune action réelle & Moteur d'alertes réel + garde-fous de sécurité, recommandations validées par un opérateur humain avant écriture d'une consigne au DCS (human-in-the-loop) \\
+6. Boucle MLOps & Aucune (jeu figé) & Archivage prédictions vs réel, suivi de dérive, ré-entraînement périodique avec validation avant redéploiement des artefacts (\texttt{.pt}) \\
+\bottomrule
+\end{tabular}
+\caption{Ce qui change (et ne change pas) entre synthétique et déploiement réel}
+\end{table}
+
+Point clé : \textbf{l'architecture logicielle ne change pas} (\texttt{src/}, \texttt{backend/},
+\texttt{frontend/}) — seule la source de données change (CSV rejoués $\to$ flux temps réel du
+DCS/historian). Le même \texttt{ModelRegistry} et les mêmes artefacts \texttt{.pt} peuvent servir
+un jeu de test ou un flux réel, à condition que le pipeline de features réel produise des
+tenseurs dans le même ordre de colonnes et les mêmes unités que
+\texttt{fouling\_feature\_names.joblib} / \texttt{yields\_feature\_names.joblib} / etc.
 
 \section{Le dashboard — jumeau numérique}
 
@@ -447,9 +741,26 @@ déposées de leurs propriétaires respectifs) :
 \section{Conclusion}
 
 Les 5 objectifs métier sont atteints avec des réseaux de neurones uniquement, sur des données
-100\% synthétiques mais physiquement cohérentes. Le meilleur modèle de rendements (RNN simple)
-est volontairement le plus simple testé — illustration qu'une architecture plus complexe
-n'est pas toujours nécessaire. Le pipeline complet tourne en quelques dizaines de millisecondes,
-largement compatible avec un déploiement temps réel.
+100\% synthétiques mais physiquement cohérentes. Trois enseignements transversaux se dégagent
+des résultats détaillés (§3) :
+
+\begin{enumerate}
+  \item \textbf{Le modèle le plus simple gagne souvent} : le RNN simple (13 956 paramètres) bat
+  7 architectures plus lourdes sur les rendements ; l'architecture la plus complexe n'est pas
+  toujours la meilleure quand la tâche a une dépendance temporelle courte et le jeu
+  d'entraînement est modeste.
+  \item \textbf{Aucune métrique unique ne suffit} : MAPE/RMSE/R\textsuperscript{2} racontent
+  parfois des histoires opposées (énergie spécifique, gazole, soufre) selon l'échelle et la
+  variance de la cible ; en classification déséquilibrée (fouling), accuracy et F1 sont
+  carrément trompeurs et il a fallu des métriques métier (avance de détection, corrélation à la
+  vérité terrain) pour choisir correctement le modèle de production.
+  \item \textbf{Le déploiement réel ne change pas l'architecture logicielle} (§4) : seule la
+  source de données évolue, le pipeline préprocessing $\to$ inférence $\to$ alertes reste
+  identique, à condition d'une gouvernance MLOps (suivi de dérive, ré-entraînement, validation
+  avant redéploiement).
+\end{enumerate}
+
+Le pipeline complet (préprocessing $\to$ inférence $\to$ alertes) tourne en quelques dizaines de
+millisecondes, largement compatible avec un déploiement temps réel.
 
 \end{document}
