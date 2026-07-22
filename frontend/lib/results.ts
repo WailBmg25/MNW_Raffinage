@@ -39,7 +39,7 @@ export const objectivesSummary = [
   { id: 2, label: "Détection du fouling (> 24h avant nettoyage)", achieved: true, value: "3022 h (résidus GRU, corr. vérité terrain 0.49)" },
   { id: 3, label: "Optimisation énergétique (gain > 5%)", achieved: true, value: "5.53 % (774 $/j, 4.13 tCO2/j)" },
   { id: 4, label: "Qualité produits (corrélation > 0.9)", achieved: true, value: "0.971 (GRU multi-sorties)" },
-  { id: 5, label: "Alertes temps réel (latence < 1 min)", achieved: true, value: "~55 ms (moyenne), 226 ms (max)" },
+  { id: 5, label: "Alertes temps réel (latence < 1 min)", achieved: true, value: "~23 ms (moyenne), 174 ms (max)" },
 ];
 
 // `corrVeriteTerrain` : corrélation de Pearson entre le score brut de la méthode et la
