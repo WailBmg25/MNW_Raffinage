@@ -62,10 +62,13 @@ export default function RendementsPage() {
                   height={160}
                   xKey="ts"
                   data={history.timestamps.map((ts, i) => ({
-                    ts: new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+                    ts,
                     Réel: history.actual[cut.key][i],
                     Prédit: history.predicted[cut.key][i],
                   }))}
+                  xTickFormatter={(ts) =>
+                    new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+                  }
                   series={[
                     { key: "Réel", label: "Réel", color: cut.color },
                     { key: "Prédit", label: "Prédit", color: "#94a3b8", strokeDasharray: "4 4" },

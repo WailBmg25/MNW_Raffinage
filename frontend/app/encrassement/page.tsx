@@ -56,7 +56,7 @@ export default function EncrassementPage() {
       <Card className="border-slate-800 bg-[#111827]">
         <CardHeader>
           <CardTitle className="text-sm font-medium text-slate-300">
-            Timeline 2 ans — indice estimé vs vérité terrain
+            Historique {data ? Math.round(data.history.timestamps.length / 24) : "…"} jours — indice estimé vs vérité terrain
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -67,13 +67,16 @@ export default function EncrassementPage() {
               height={300}
               xKey="ts"
               data={data.history.timestamps.map((ts, i) => ({
-                ts: new Date(ts).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+                ts,
                 "Indice estimé": data.history.index[i],
                 "Vérité terrain (cachée)": data.history.hidden_truth[i],
               }))}
+              xTickFormatter={(ts) =>
+                new Date(ts).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" })
+              }
               series={[
                 { key: "Indice estimé", label: "Indice estimé (réseau)", color: "#ef4444" },
-                { key: "Vérité terrain (cachée)", label: "Vérité terrain (cachée)", color: "#475569", strokeDasharray: "3 3" },
+                { key: "Vérité terrain (cachée)", label: "Vérité terrain (cachée, normalisée)", color: "#475569", strokeDasharray: "3 3" },
               ]}
               referenceLines={[{ y: data.threshold, label: "Seuil de nettoyage", color: "#f59e0b" }]}
             />

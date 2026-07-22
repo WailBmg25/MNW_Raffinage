@@ -82,6 +82,8 @@ class ModelRegistry:
         self.surrogate = self._try_load_bundle("surrogate_energy.pt", "surrogate_scaler_X.joblib",
                                                 "surrogate_feature_names.joblib")
 
+        self._gru_residual_ewma: float | None = None
+
         logger.info("ModelRegistry chargé (device=%s) : yields=%s fouling=%s quality=%s surrogate=%s",
                     self.device, self.yields.available, self.fouling.available,
                     self.quality.available, self.surrogate.available)
@@ -153,7 +155,18 @@ class ModelRegistry:
                     idx = self.fouling.feature_names.index("preheat_outlet_temp")
                 pred = self.fouling.model(t).cpu().numpy()[0, 0]
                 actual = X_window[0, -1, idx] if idx is not None else 0.0
-                return float(actual - pred)
+                # Même quantité que l'évaluation du notebook 04 (residual_series.ewm(span=...).abs()) :
+                # magnitude du résidu, lissée par EWMA causal (une seule valeur passée mémorisée ici,
+                # équivalent en régime établi au ewm(span=...) pandas utilisé pour calibrer le seuil).
+                residual = abs(float(actual - pred))
+                span = (self.fouling_production_meta or {}).get("ewma_span")
+                if span:
+                    alpha = 2.0 / (span + 1)
+                    prev = self._gru_residual_ewma
+                    smoothed = residual if prev is None else alpha * residual + (1 - alpha) * prev
+                    self._gru_residual_ewma = smoothed
+                    return float(smoothed)
+                return residual
             if model_type == "vae":
                 recon, _, _ = self.fouling.model(t)
                 return float(torch.mean((recon - t) ** 2).item())

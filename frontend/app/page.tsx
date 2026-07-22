@@ -99,13 +99,16 @@ export default function CommandCenterPage() {
             ) : (
               <TrendChart
                 data={yieldsStreamHistory.map((p) => ({
-                  ts: new Date(p.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+                  ts: p.timestamp,
                   Naphta: p.naphtha,
                   Kerosene: p.kerosene,
                   Gazole: p.gasoil,
                   Residu: p.residue,
                 }))}
                 xKey="ts"
+                xTickFormatter={(ts) =>
+                  new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+                }
                 variant="area"
                 height={280}
                 series={[
