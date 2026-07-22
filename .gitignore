@@ -29,3 +29,20 @@ docker-compose.override.yml
 # IDE
 .vscode/
 .idea/
+
+# Fichiers d'instructions pour agents IA (Claude Code, etc.) — pas du contenu de projet
+CLAUDE.md
+AGENTS.md
+.claude/
+
+# Artefacts de compilation LaTeX (le rapport final versionné reste report.md/report.tex + images/)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bbl
+*.blg
+report/*.pdf
